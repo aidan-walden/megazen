@@ -8,6 +8,7 @@ MegaZen is a media downloader written in Go that takes requests through a REST A
 - cyberdrop.me
 - gofile.io
 - putme.ga (only albums)
+- pixeldrain.com
 
 ## Request endpoints
 
@@ -16,4 +17,7 @@ Takes a JSON array payload containing the URLs you wish to download. You may mix
 ## TODO:
 
 - Support for mega.nz
+- Config file
+- Ability to exclude certain files from folder downloads
+- API authorization
 - React web app frontend

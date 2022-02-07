@@ -94,6 +94,8 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 			createdDownloaders = append(createdDownloaders, downloaders.NewCyberdrop(url))
 		} else if strings.Contains(url, "putme.ga/album/") {
 			createdDownloaders = append(createdDownloaders, downloaders.NewPutmega(url))
+		} else if strings.Contains(url, "pixeldrain.com/u/") {
+			createdDownloaders = append(createdDownloaders, downloaders.NewPixeldrain(url))
 		} else {
 			unknownUrls = append(unknownUrls, url)
 		}

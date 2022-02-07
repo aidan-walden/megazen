@@ -5,6 +5,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
+	"net/url"
 	"path/filepath"
 	"strings"
 )
@@ -54,7 +55,11 @@ func (dl *cyberdropDownloader) ParseDownloads(c chan *[]models.Download) error {
 			return
 		}
 
-		fileTitle := filepath.Base(link)
+		fileTitle, err := url.QueryUnescape(filepath.Base(link))
+
+		if err != nil {
+			panic(err)
+		}
 
 		savePath, err := filepath.Abs("./downloads/" + dl.title + "/" + fileTitle)
 
