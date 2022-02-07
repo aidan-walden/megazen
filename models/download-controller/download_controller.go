@@ -22,11 +22,11 @@ type downloadController struct {
 
 func download(i interface{}, urls *[]models.Download, mu *sync.Mutex) (err error) {
 	n := i.(int32)
-	fmt.Println("downloading", n)
 	mu.Lock()
 	url := (*urls)[0]
 	*urls = (*urls)[1:]
 	mu.Unlock()
+	fmt.Println("downloading", n, url.Path)
 	defer func(url *models.Download) {
 		err := url.DownloadFile()
 		if err != nil {
@@ -139,6 +139,13 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 		}
 
 		go dlman.ExecuteDownloads(added)
+	}()
+
+	go func() {
+		err := <-errors
+		if err != nil {
+			fmt.Println("Parsing error", err)
+		}
 	}()
 
 	return
