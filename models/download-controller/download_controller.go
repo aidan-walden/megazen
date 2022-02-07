@@ -94,7 +94,7 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 		if strings.Contains(url, "bunkr") {
 			createdDownloaders = append(createdDownloaders, downloaders.NewBunkr(url))
 		} else if strings.Contains(url, "gofile.io") {
-			createdDownloaders = append(createdDownloaders, downloaders.NewGofile(url, "HARDCODED_TOKEN_LOLOLOLOLOL"))
+			createdDownloaders = append(createdDownloaders, downloaders.NewGofile(url, "OtT2y35lcy1UPdPSsWSO59SBvivVojqL"))
 		} else if strings.Contains(url, "cyberdrop.me/a/") {
 			createdDownloaders = append(createdDownloaders, downloaders.NewCyberdrop(url))
 		} else if strings.Contains(url, "putme.ga/album/") {
@@ -118,9 +118,7 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 		go func() {
 			defer wg.Done()
 			err := downloader.ParseDownloads(queue)
-			if err != nil {
-				errors <- err
-			}
+			errors <- err
 		}()
 	}
 
