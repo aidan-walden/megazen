@@ -40,12 +40,7 @@ func (dl *Download) DownloadFile() error {
 	fmt.Println(dl.Url)
 	var res *http.Response
 
-	client := &http.Client{
-		// Do not follow redirects
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := &http.Client{}
 
 	// c.L.Lock()
 	for {
