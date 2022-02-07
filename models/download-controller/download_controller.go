@@ -44,7 +44,7 @@ func New() *downloadController {
 		if err != nil {
 			fmt.Println("download error", err)
 		}
-		wg.Done()
+		defer wg.Done()
 	})
 
 	return &downloadController{
@@ -135,9 +135,8 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 }
 
 func (dlman *downloadController) ExecuteDownloads() {
-	dlman.wg.Wait()
 	dlman.wg.Add(len(downloads))
-	for i, _ := range downloads {
+	for i := range downloads {
 		fmt.Println("Submitting download")
 		err := dlman.pool.Invoke(int32(i))
 		if err != nil {

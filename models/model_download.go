@@ -28,7 +28,6 @@ func (d *Download) Read(p []byte) (int, error) {
 	if n > 0 {
 		d.current += int64(n)
 		d.Progress = float64(d.current) / float64(d.total) * 100
-		fmt.Printf("Progress for %s: %f\n", d.Path, d.Progress)
 	}
 
 	return n, err
@@ -137,6 +136,8 @@ func (dl *Download) DownloadFile() error {
 		}
 		return err
 	}
+
+	fmt.Println(dl.Path + ": Download complete")
 
 	dl.Complete = true
 	return nil
