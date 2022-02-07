@@ -17,13 +17,16 @@ var downloads = make([]models.Download, 0)
 type downloadController struct {
 	pool *ants.PoolWithFunc
 	wg   *sync.WaitGroup
+	mu   *sync.Mutex
 }
 
-func download(i interface{}, urls *[]models.Download) (err error) {
+func download(i interface{}, urls *[]models.Download, mu *sync.Mutex) (err error) {
 	n := i.(int32)
 	fmt.Println("downloading", n)
+	mu.Lock()
 	url := (*urls)[0]
 	*urls = (*urls)[1:]
+	mu.Unlock()
 	defer func(url *models.Download) {
 		err := url.DownloadFile()
 		if err != nil {
@@ -38,9 +41,10 @@ func New() *downloadController {
 	defer ants.Release()
 
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	pool, _ := ants.NewPoolWithFunc(4, func(i interface{}) {
-		err := download(i, &downloads)
+		err := download(i, &downloads, &mu)
 		if err != nil {
 			fmt.Println("download error", err)
 		}
@@ -50,6 +54,7 @@ func New() *downloadController {
 	return &downloadController{
 		pool: pool,
 		wg:   &wg,
+		mu:   &mu,
 	}
 }
 
@@ -124,19 +129,24 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 		wg.Wait()
 		close(queue)
 
+		added := 0
+
 		for url := range queue {
+			dlman.mu.Lock()
 			downloads = append(downloads, *url...)
+			added = added + len(*url)
+			dlman.mu.Unlock()
 		}
 
-		go dlman.ExecuteDownloads()
+		go dlman.ExecuteDownloads(added)
 	}()
 
 	return
 }
 
-func (dlman *downloadController) ExecuteDownloads() {
-	dlman.wg.Add(len(downloads))
-	for i := range downloads {
+func (dlman *downloadController) ExecuteDownloads(amountDownloads int) {
+	dlman.wg.Add(amountDownloads)
+	for i := 0; i < amountDownloads; i++ {
 		fmt.Println("Submitting download")
 		err := dlman.pool.Invoke(int32(i))
 		if err != nil {
