@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// Download represents one direct download link
 type Download struct {
 	Url      string
 	Host     *Host
@@ -21,6 +22,14 @@ type Download struct {
 	current  int64   // current Amount of bytes downloaded
 	Progress float64 // Progress Percentage of the download completed
 	io.Reader
+}
+
+// FileHostEntry Represents one link from a generic file host
+type FileHostEntry interface {
+	Host() *Host
+	BaseUrl() string
+	Title() string
+	ParseDownloads(c chan *[]Download) error
 }
 
 func (d *Download) Read(p []byte) (int, error) {

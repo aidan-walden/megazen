@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/panjf2000/ants/v2"
 	"megazen/models"
-	"megazen/models/downloaders"
+	"megazen/models/extractors"
 	"net/http"
 	"strings"
 	"sync"
@@ -87,20 +87,20 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 	var wg sync.WaitGroup
 
 	unknownUrls := make([]string, 0)
-	createdDownloaders := make([]downloaders.GenericDownloader, 0)
+	createdDownloaders := make([]models.FileHostEntry, 0)
 
 	for _, url := range urls {
 
 		if strings.Contains(url, "bunkr") {
-			createdDownloaders = append(createdDownloaders, downloaders.NewBunkr(url))
+			createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url))
 		} else if strings.Contains(url, "gofile.io") {
-			createdDownloaders = append(createdDownloaders, downloaders.NewGofile(url, "OtT2y35lcy1UPdPSsWSO59SBvivVojqL"))
+			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url, "3SP5nrPl2DJwJyktSP8dLFd3b3vMoAL9"))
 		} else if strings.Contains(url, "cyberdrop.me/a/") {
-			createdDownloaders = append(createdDownloaders, downloaders.NewCyberdrop(url))
+			createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url))
 		} else if strings.Contains(url, "putme.ga/album/") {
-			createdDownloaders = append(createdDownloaders, downloaders.NewPutmega(url))
+			createdDownloaders = append(createdDownloaders, extractors.NewPutmega(url))
 		} else if strings.Contains(url, "pixeldrain.com/u/") {
-			createdDownloaders = append(createdDownloaders, downloaders.NewPixeldrain(url))
+			createdDownloaders = append(createdDownloaders, extractors.NewPixeldrain(url, strings.Contains(url, "/l/")))
 		} else {
 			unknownUrls = append(unknownUrls, url)
 		}

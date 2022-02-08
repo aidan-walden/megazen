@@ -1,30 +1,45 @@
-package downloaders
+package extractors
 
 import (
+	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
 	"mime"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 )
 
-type bunkrDownloader struct {
-	models.Host
+type bunkrEntry struct {
+	host    models.Host
 	baseUrl string
 	title   string
+	models.FileHostEntry
 }
 
-func NewBunkr(url string) *bunkrDownloader {
-	downloader := bunkrDownloader{baseUrl: url, Host: models.Host{
+func NewBunkr(url string) *bunkrEntry {
+	downloader := bunkrEntry{baseUrl: url, host: models.Host{
 		Name: "Bunkr",
 	}}
 	return &downloader
 }
 
-func (dl *bunkrDownloader) ParseDownloads(c chan *[]models.Download) error {
+func (dl *bunkrEntry) Host() *models.Host {
+	return &dl.host
+}
+
+func (dl *bunkrEntry) BaseUrl() string {
+	return dl.baseUrl
+}
+
+func (dl *bunkrEntry) Title() string {
+	return dl.title
+}
+
+func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 	if strings.Contains(dl.baseUrl, "stream.bunkr.is") {
 
 		path, err := filepath.Abs("./downloads/" + filepath.Base(dl.baseUrl))
@@ -43,16 +58,20 @@ func (dl *bunkrDownloader) ParseDownloads(c chan *[]models.Download) error {
 		replaced[0] = models.Download{
 			Url:  strings.Replace(dl.baseUrl, "stream.bunkr.is/v/", "stream.bunkr.is/d/", 1),
 			Path: savePath,
-			Host: &dl.Host,
+			Host: &dl.host,
 		}
 		c <- &replaced
 		return nil
 	}
 
-	res, err := WaitForSuccessfulRequest(dl.baseUrl, &dl.Timeouts)
+	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return errors.New("Status code error: " + string(rune(res.StatusCode)) + " " + res.Status)
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -101,7 +120,7 @@ func (dl *bunkrDownloader) ParseDownloads(c chan *[]models.Download) error {
 		download := models.Download{
 			Url:  link,
 			Path: savePath,
-			Host: &dl.Host,
+			Host: &dl.host,
 		}
 
 		downloads = append(downloads, download)

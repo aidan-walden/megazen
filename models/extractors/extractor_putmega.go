@@ -1,33 +1,52 @@
-package downloaders
+package extractors
 
 import (
+	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 )
 
-type putmegaDownloader struct {
-	models.Host
+type putmegaEntry struct {
+	host    models.Host
 	baseUrl string
 	title   string
+	models.FileHostEntry
 }
 
-func NewPutmega(url string) *putmegaDownloader {
-	downloader := putmegaDownloader{baseUrl: url, Host: models.Host{
+func NewPutmega(url string) *putmegaEntry {
+	downloader := putmegaEntry{baseUrl: url, host: models.Host{
 		Name: "PutMega",
 	}}
 	return &downloader
 }
 
-func (dl *putmegaDownloader) ParseDownloads(c chan *[]models.Download) error {
-	res, err := WaitForSuccessfulRequest(dl.baseUrl, &dl.Timeouts)
+func (dl *putmegaEntry) Host() *models.Host {
+	return &dl.host
+}
+
+func (dl *putmegaEntry) BaseUrl() string {
+	return dl.baseUrl
+}
+
+func (dl *putmegaEntry) Title() string {
+	return dl.title
+}
+
+func (dl *putmegaEntry) ParseDownloads(c chan *[]models.Download) error {
+	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return errors.New("Status code error: " + string(rune(res.StatusCode)) + " " + res.Status)
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -72,7 +91,7 @@ func (dl *putmegaDownloader) ParseDownloads(c chan *[]models.Download) error {
 		download := models.Download{
 			Url:  link,
 			Path: savePath,
-			Host: &dl.Host,
+			Host: &dl.host,
 		}
 
 		downloads = append(downloads, download)

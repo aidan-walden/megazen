@@ -1,33 +1,52 @@
-package downloaders
+package extractors
 
 import (
+	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 )
 
-type cyberdropDownloader struct {
-	models.Host
+type cyberdropEntry struct {
+	host    models.Host
 	baseUrl string
 	title   string
+	models.FileHostEntry
 }
 
-func NewCyberdrop(url string) *cyberdropDownloader {
-	downloader := cyberdropDownloader{baseUrl: url, Host: models.Host{
+func NewCyberdrop(url string) *cyberdropEntry {
+	downloader := cyberdropEntry{baseUrl: url, host: models.Host{
 		Name: "Cyberdrop",
 	}}
 	return &downloader
 }
 
-func (dl *cyberdropDownloader) ParseDownloads(c chan *[]models.Download) error {
-	res, err := WaitForSuccessfulRequest(dl.baseUrl, &dl.Timeouts)
+func (dl *cyberdropEntry) Host() *models.Host {
+	return &dl.host
+}
+
+func (dl *cyberdropEntry) BaseUrl() string {
+	return dl.baseUrl
+}
+
+func (dl *cyberdropEntry) Title() string {
+	return dl.title
+}
+
+func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
+	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return errors.New("Status code error: " + string(rune(res.StatusCode)) + " " + res.Status)
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -70,7 +89,7 @@ func (dl *cyberdropDownloader) ParseDownloads(c chan *[]models.Download) error {
 		download := models.Download{
 			Url:  link,
 			Path: savePath,
-			Host: &dl.Host,
+			Host: &dl.host,
 		}
 
 		downloads = append(downloads, download)
