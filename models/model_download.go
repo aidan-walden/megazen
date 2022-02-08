@@ -37,6 +37,7 @@ func (d *Download) Read(p []byte) (int, error) {
 	if n > 0 {
 		d.current += int64(n)
 		d.Progress = float64(d.current) / float64(d.total) * 100
+		fmt.Println("Downloaded", d.current, "of", d.total, "bytes (", d.Progress, "%)")
 	}
 
 	return n, err

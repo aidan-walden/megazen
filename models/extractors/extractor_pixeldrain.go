@@ -2,8 +2,10 @@ package extractors
 
 import (
 	"encoding/json"
+	"errors"
 	"megazen/models"
 	"megazen/models/pixeldrain"
+	"net/http"
 	"path/filepath"
 )
 
@@ -44,6 +46,10 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 			return err
 		}
 
+		if res.StatusCode != http.StatusOK {
+			return errors.New("Status code error: " + string(rune(res.StatusCode)) + " " + res.Status)
+		}
+
 		var folder pixeldrain.FolderInfo
 
 		err = json.NewDecoder(res.Body).Decode(&folder)
@@ -55,7 +61,7 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 		downloads := make([]models.Download, 0)
 
 		for _, info := range folder.Files {
-			savePath, err := filepath.Abs("./downloads/" + info.Name)
+			savePath, err := filepath.Abs("./downloads/" + folder.Title + "/" + info.Name)
 
 			if err != nil {
 				panic(err)
@@ -75,6 +81,10 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 
 		if err != nil {
 			return err
+		}
+
+		if res.StatusCode != http.StatusOK {
+			return errors.New("Status code error: " + string(rune(res.StatusCode)) + " " + res.Status)
 		}
 
 		var info pixeldrain.FileInfo
