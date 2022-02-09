@@ -37,6 +37,11 @@ func (dl *gofileEntry) Title() string {
 }
 
 func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
+	downloads := make([]models.Download, 0)
+	defer func() {
+		c <- &downloads
+	}()
+
 	contentId := filepath.Base(dl.baseUrl)
 
 	res, err := models.WaitForSuccessfulRequest("https://apiv2.gofile.io/getContent?contentId="+contentId+"&token="+dl.token+"&websiteToken=websiteToken&cache=true", &dl.host.Timeouts)
@@ -55,8 +60,6 @@ func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
 
 		}
 	}(res.Body)
-
-	var downloads []models.Download
 
 	var content gofile.Content
 
@@ -92,8 +95,6 @@ func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
 			Host: &dl.host,
 		})
 	}
-
-	c <- &downloads
 
 	return nil
 }

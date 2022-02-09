@@ -40,6 +40,11 @@ func (dl *bunkrEntry) Title() string {
 }
 
 func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
+	downloads := make([]models.Download, 0)
+	defer func() {
+		c <- &downloads
+	}()
+
 	if strings.Contains(dl.baseUrl, "stream.bunkr.is") {
 
 		path, err := filepath.Abs("./downloads/" + filepath.Base(dl.baseUrl))
@@ -54,13 +59,11 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 			return err
 		}
 
-		replaced := make([]models.Download, 1)
-		replaced[0] = models.Download{
+		downloads = append(downloads, models.Download{
 			Url:  strings.Replace(dl.baseUrl, "stream.bunkr.is/v/", "stream.bunkr.is/d/", 1),
 			Path: savePath,
 			Host: &dl.host,
-		}
-		c <- &replaced
+		})
 		return nil
 	}
 
@@ -90,8 +93,6 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 	dl.title = strings.TrimSpace(doc.Find("#title").Text())
 	fmt.Println("Title: ", dl.title)
 
-	var downloads []models.Download
-
 	doc.Find(".image-container.column").Each(func(i int, s *goquery.Selection) {
 		link, found := s.Find("a").First().Attr("href")
 
@@ -117,16 +118,12 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 			panic(err)
 		}
 
-		download := models.Download{
+		downloads = append(downloads, models.Download{
 			Url:  link,
 			Path: savePath,
 			Host: &dl.host,
-		}
-
-		downloads = append(downloads, download)
+		})
 	})
-
-	c <- &downloads
 
 	return nil
 }

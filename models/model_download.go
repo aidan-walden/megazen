@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync/atomic"
 	"time"
 )
@@ -32,22 +33,28 @@ type FileHostEntry interface {
 	ParseDownloads(c chan *[]Download) error
 }
 
-func (d *Download) Read(p []byte) (int, error) {
-	n, err := d.Reader.Read(p)
+func (dl *Download) Read(p []byte) (int, error) {
+	n, err := dl.Reader.Read(p)
 	if n > 0 {
-		d.current += int64(n)
-		d.Progress = float64(d.current) / float64(d.total) * 100
-		fmt.Println("Downloaded", d.current, "of", d.total, "bytes (", d.Progress, "%)")
+		dl.current += int64(n)
+		dl.Progress = float64(dl.current) / float64(dl.total) * 100
+		// fmt.Println("Progress:", dl.Progress)
 	}
 
 	return n, err
 }
+
+var re = regexp.MustCompile("[|&;$%@\"<>()+,?]")
 
 // DownloadFile handles downloading files from their direct URLs
 // and saving them to the specified path.
 func (dl *Download) DownloadFile() error {
 	fmt.Println(dl.Url)
 	var res *http.Response
+
+	// Make file path valid
+	dl.Path = re.ReplaceAllString(dl.Path, "-")
+	fmt.Println("Downloading to:", dl.Path)
 
 	client := &http.Client{}
 
@@ -77,7 +84,7 @@ func (dl *Download) DownloadFile() error {
 				dl.Host.Lock.Lock()
 				fmt.Println("Download Waiting, timeouts = ", dl.Host.Timeouts)
 				atomic.AddInt32(&dl.Host.Timeouts, 1)
-				time.Sleep(time.Duration(math.Pow(5, float64(dl.Host.Timeouts+1))) * time.Second)
+				time.Sleep(time.Duration(math.Max(math.Pow(5, float64(dl.Host.Timeouts+1)), 10)) * time.Second)
 				fmt.Println("Download Resuming")
 				dl.Host.Lock.Unlock()
 			} else {

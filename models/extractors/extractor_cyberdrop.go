@@ -39,6 +39,11 @@ func (dl *cyberdropEntry) Title() string {
 }
 
 func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
+	downloads := make([]models.Download, 0)
+	defer func() {
+		c <- &downloads
+	}()
+
 	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
 
 	if err != nil {
@@ -64,8 +69,6 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 
 	dl.title = strings.TrimSpace(doc.Find("#title").Text())
 	fmt.Println("Title: ", dl.title)
-
-	var downloads []models.Download
 
 	doc.Find("a.image").Each(func(i int, s *goquery.Selection) {
 		link, found := s.Attr("href")
@@ -94,8 +97,6 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 
 		downloads = append(downloads, download)
 	})
-
-	c <- &downloads
 
 	return nil
 }

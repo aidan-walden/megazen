@@ -20,13 +20,11 @@ type downloadController struct {
 	mu   *sync.Mutex
 }
 
-func download(i interface{}, urls *[]models.Download, mu *sync.Mutex) (err error) {
-	n := i.(int32)
+func download(urls *[]models.Download, mu *sync.Mutex) (err error) {
 	mu.Lock()
 	url := (*urls)[0]
 	*urls = (*urls)[1:]
 	mu.Unlock()
-	fmt.Println("downloading", n, url.Path)
 	defer func(url *models.Download) {
 		err := url.DownloadFile()
 		if err != nil {
@@ -44,7 +42,7 @@ func New() *downloadController {
 	var mu sync.Mutex
 
 	pool, _ := ants.NewPoolWithFunc(4, func(i interface{}) {
-		err := download(i, &downloads, &mu)
+		err := download(&downloads, &mu)
 		if err != nil {
 			fmt.Println("download error", err)
 		}
@@ -93,14 +91,16 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 
 		if strings.Contains(url, "bunkr") {
 			createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url))
-		} else if strings.Contains(url, "gofile.io") {
-			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url, "3SP5nrPl2DJwJyktSP8dLFd3b3vMoAL9"))
+		} else if strings.Contains(url, "gofile.io/") {
+			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url, "TOKEN"))
 		} else if strings.Contains(url, "cyberdrop.me/a/") {
 			createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url))
-		} else if strings.Contains(url, "putme.ga/album/") {
+		} else if strings.Contains(url, "putme.ga/album/") || strings.Contains(url, "pixl.is/album/") {
 			createdDownloaders = append(createdDownloaders, extractors.NewPutmega(url))
-		} else if strings.Contains(url, "pixeldrain.com/u/") {
+		} else if strings.Contains(url, "pixeldrain.com/") {
 			createdDownloaders = append(createdDownloaders, extractors.NewPixeldrain(url, strings.Contains(url, "/l/")))
+		} else if strings.Contains(url, "anonfiles.com/") {
+			createdDownloaders = append(createdDownloaders, extractors.NewAnonfiles(url))
 		} else {
 			unknownUrls = append(unknownUrls, url)
 		}

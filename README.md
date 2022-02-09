@@ -4,6 +4,7 @@ MegaZen is a media downloader written in Go that takes requests through a REST A
 
 ## Currently supported file hosts
 
+- anonfiles.com
 - bunkr.is / bunkr.to
 - cyberdrop.me
 - gofile.io
