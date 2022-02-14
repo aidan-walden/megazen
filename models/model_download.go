@@ -18,17 +18,26 @@ type Download struct {
 	Url      string
 	Host     *Host
 	Path     string
-	Complete bool
+	complete bool
 	total    int64   // total Expected length of the file in bytes
 	current  int64   // current Amount of bytes downloaded
-	Progress float64 // Progress Percentage of the download completed
+	progress float64 // Progress Percentage of the download completed
 	io.Reader
+}
+
+type DownloadResponse struct {
+	Url      string  `json:"url"`
+	Path     string  `json:"path"`
+	Complete bool    `json:"complete"`
+	Total    int64   `json:"total"`    // total Expected length of the file in bytes
+	Current  int64   `json:"current"`  // current Amount of bytes downloaded
+	Progress float64 `json:"progress"` // Progress Percentage of the download completed
 }
 
 // FileHostEntry Represents one link from a generic file host
 type FileHostEntry interface {
 	Host() *Host
-	BaseUrl() string
+	OriginUrl() string
 	Title() string
 	ParseDownloads(c chan *[]Download) error
 }
@@ -37,11 +46,26 @@ func (dl *Download) Read(p []byte) (int, error) {
 	n, err := dl.Reader.Read(p)
 	if n > 0 {
 		dl.current += int64(n)
-		dl.Progress = float64(dl.current) / float64(dl.total) * 100
-		// fmt.Println("Progress:", dl.Progress)
+		dl.progress = float64(dl.current) / float64(dl.total) * 100
 	}
 
 	return n, err
+}
+
+func (dl *Download) Progress() float64 {
+	return dl.progress
+}
+
+func (dl *Download) IsComplete() bool {
+	return dl.complete
+}
+
+func (dl *Download) Total() int64 {
+	return dl.total
+}
+
+func (dl *Download) Current() int64 {
+	return dl.current
 }
 
 var re = regexp.MustCompile("[|&;$%@\"<>()+,?]")
@@ -113,6 +137,7 @@ func (dl *Download) DownloadFile() error {
 	if err == nil {
 		if stat.Size() == dl.total {
 			fmt.Println("File already downloaded")
+			dl.complete = true
 			return nil
 		}
 	}
@@ -156,6 +181,6 @@ func (dl *Download) DownloadFile() error {
 
 	fmt.Println(dl.Path + ": Download complete")
 
-	dl.Complete = true
+	dl.complete = true
 	return nil
 }

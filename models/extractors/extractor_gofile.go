@@ -12,15 +12,12 @@ import (
 )
 
 type gofileEntry struct {
-	host    models.Host
-	baseUrl string
-	title   string
-	token   string
-	models.FileHostEntry
+	Extractor
+	token string
 }
 
 func NewGofile(url string, token string) *gofileEntry {
-	downloader := gofileEntry{baseUrl: url, token: token, host: models.Host{Name: "Gofile"}}
+	downloader := gofileEntry{Extractor{originUrl: url, host: models.Host{Name: "Gofile"}}, token}
 	return &downloader
 }
 
@@ -28,8 +25,8 @@ func (dl *gofileEntry) Host() *models.Host {
 	return &dl.host
 }
 
-func (dl *gofileEntry) BaseUrl() string {
-	return dl.baseUrl
+func (dl *gofileEntry) OriginUrl() string {
+	return dl.originUrl
 }
 
 func (dl *gofileEntry) Title() string {
@@ -42,7 +39,7 @@ func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	contentId := filepath.Base(dl.baseUrl)
+	contentId := filepath.Base(dl.originUrl)
 
 	res, err := models.WaitForSuccessfulRequest("https://apiv2.gofile.io/getContent?contentId="+contentId+"&token="+dl.token+"&websiteToken=websiteToken&cache=true", &dl.host.Timeouts)
 

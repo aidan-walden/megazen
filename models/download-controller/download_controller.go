@@ -12,37 +12,57 @@ import (
 	"sync"
 )
 
-var downloads = make([]models.Download, 0)
+type DownloadQueue struct {
+	active   []*models.Download
+	waiting  []*models.Download
+	complete []*models.Download
+}
+
+var encounteredErrors = make([]*error, 0)
 
 type downloadController struct {
 	pool *ants.PoolWithFunc
 	wg   *sync.WaitGroup
-	mu   *sync.Mutex
+	mu   *sync.RWMutex
 }
 
-func download(urls *[]models.Download, mu *sync.Mutex) (err error) {
+var downloadQueue = &DownloadQueue{
+	active:   make([]*models.Download, 0),
+	waiting:  make([]*models.Download, 0),
+	complete: make([]*models.Download, 0),
+}
+
+func download(queue *DownloadQueue, mu *sync.RWMutex) (err error) {
 	mu.Lock()
-	url := (*urls)[0]
-	*urls = (*urls)[1:]
+	url := (*queue).waiting[0]
+	(*queue).waiting = (*queue).waiting[1:]
+	(*queue).active = append((*queue).active, url)
 	mu.Unlock()
 	defer func(url *models.Download) {
 		err := url.DownloadFile()
 		if err != nil {
 			fmt.Println("download error", err)
 		}
-	}(&url)
+		mu.Lock()
+		queue = &DownloadQueue{
+			active:   (*queue).active[1:],
+			waiting:  (*queue).waiting,
+			complete: append((*queue).complete, url),
+		}
+		mu.Unlock()
+	}(url)
 
 	return
 }
 
-func New() *downloadController {
+func New(concurrentDownloadsCount int) *downloadController {
 	defer ants.Release()
 
 	var wg sync.WaitGroup
-	var mu sync.Mutex
+	var mu sync.RWMutex
 
-	pool, _ := ants.NewPoolWithFunc(4, func(i interface{}) {
-		err := download(&downloads, &mu)
+	pool, _ := ants.NewPoolWithFunc(concurrentDownloadsCount, func(i interface{}) {
+		err := download(downloadQueue, &mu)
 		if err != nil {
 			fmt.Println("download error", err)
 		}
@@ -81,7 +101,7 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 
 	// Set up channel to receive URLs
 	queue := make(chan *[]models.Download, len(urls))
-	errors := make(chan error, len(urls))
+	errorsChannel := make(chan error, len(urls))
 	var wg sync.WaitGroup
 
 	unknownUrls := make([]string, 0)
@@ -92,7 +112,7 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 		if strings.Contains(url, "bunkr") {
 			createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url))
 		} else if strings.Contains(url, "gofile.io/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url, "TOKEN"))
+			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url, "AO3uS259LDIqUdRIXQZcDECeG2RxGKiX"))
 		} else if strings.Contains(url, "cyberdrop.me/a/") {
 			createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url))
 		} else if strings.Contains(url, "putme.ga/album/") || strings.Contains(url, "pixl.is/album/") {
@@ -118,7 +138,7 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 		go func() {
 			defer wg.Done()
 			err := downloader.ParseDownloads(queue)
-			errors <- err
+			errorsChannel <- err
 		}()
 	}
 
@@ -131,8 +151,10 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 
 		for url := range queue {
 			dlman.mu.Lock()
-			downloads = append(downloads, *url...)
-			added = added + len(*url)
+			for _, download := range *url {
+				downloadQueue.waiting = append(downloadQueue.waiting, &download)
+				added++
+			}
 			dlman.mu.Unlock()
 		}
 
@@ -140,9 +162,10 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 	}()
 
 	go func() {
-		err := <-errors
+		err := <-errorsChannel
 		if err != nil {
-			fmt.Println("Parsing error", err)
+			encounteredErrors = append(encounteredErrors, &err)
+			// fmt.Println("Parsing error", err)
 		}
 	}()
 
@@ -170,4 +193,23 @@ func (dlman *downloadController) ExecuteDownloads(amountDownloads int) {
 	//}
 
 	return
+}
+
+func (dlman *downloadController) GetActiveDownloads() *[]models.DownloadResponse {
+	downloads := make([]models.DownloadResponse, 0)
+	for _, download := range downloadQueue.active {
+		downloads = append(downloads, models.DownloadResponse{
+			Url:      download.Url,
+			Path:     download.Path,
+			Complete: download.IsComplete(),
+			Total:    download.Total(),
+			Current:  download.Current(),
+			Progress: download.Progress(),
+		})
+	}
+	return &downloads
+}
+
+func (dlman *downloadController) GetErrors() []*error {
+	return encounteredErrors
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"megazen/routes"
 )
@@ -9,12 +8,18 @@ import (
 func main() {
 	r := gin.Default()
 
-	r.Use(static.Serve("/", static.LocalFile("./views", true)))
+	r.LoadHTMLFiles("http/static/html/index.html")
+
+	r.GET("/", routes.Index)
 
 	api := r.Group("/api")
 	{
-		api.GET("/", routes.Index)
 		api.POST("/submit", routes.SubmitDownload)
+	}
+
+	websocket := r.Group("/ws")
+	{
+		websocket.GET("/downloads", routes.DownloadsWebsocket)
 	}
 
 	err := r.Run(":3000")

@@ -10,17 +10,14 @@ import (
 )
 
 type pixeldrainEntry struct {
-	host     models.Host
-	baseUrl  string
-	title    string
+	Extractor
 	isFolder bool
-	models.FileHostEntry
 }
 
 func NewPixeldrain(url string, isFolder bool) *pixeldrainEntry {
-	downloader := pixeldrainEntry{baseUrl: url, isFolder: isFolder, host: models.Host{
+	downloader := pixeldrainEntry{Extractor{originUrl: url, host: models.Host{
 		Name: "Pixeldrain",
-	}}
+	}}, isFolder}
 	return &downloader
 }
 
@@ -28,8 +25,8 @@ func (dl *pixeldrainEntry) Host() *models.Host {
 	return &dl.host
 }
 
-func (dl *pixeldrainEntry) BaseUrl() string {
-	return dl.baseUrl
+func (dl *pixeldrainEntry) OriginUrl() string {
+	return dl.originUrl
 }
 
 func (dl *pixeldrainEntry) Title() string {
@@ -42,7 +39,7 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	fileId := filepath.Base(dl.baseUrl)
+	fileId := filepath.Base(dl.originUrl)
 
 	if dl.isFolder {
 		res, err := models.WaitForSuccessfulRequest("https://pixeldrain.com/api/list/"+fileId, &dl.host.Timeouts)

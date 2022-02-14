@@ -11,16 +11,13 @@ import (
 )
 
 type anonfilesEntry struct {
-	host    models.Host
-	baseUrl string
-	title   string
-	models.FileHostEntry
+	Extractor
 }
 
 func NewAnonfiles(url string) *anonfilesEntry {
-	downloader := anonfilesEntry{baseUrl: url, host: models.Host{
+	downloader := anonfilesEntry{Extractor{originUrl: url, host: models.Host{
 		Name: "AnonFiles",
-	}}
+	}}}
 	return &downloader
 }
 
@@ -28,8 +25,8 @@ func (dl *anonfilesEntry) Host() *models.Host {
 	return &dl.host
 }
 
-func (dl *anonfilesEntry) BaseUrl() string {
-	return dl.baseUrl
+func (dl *anonfilesEntry) OriginUrl() string {
+	return dl.originUrl
 }
 
 func (dl *anonfilesEntry) Title() string {
@@ -42,7 +39,7 @@ func (dl *anonfilesEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
+	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
 
 	if err != nil {
 

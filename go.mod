@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
-	github.com/gin-contrib/static v0.0.1
 	github.com/gin-gonic/gin v1.7.7
+	github.com/gorilla/websocket v1.4.2
 	github.com/panjf2000/ants/v2 v2.4.7
 )
 

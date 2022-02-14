@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MegaZen</title>
+</head>
+<body>
+<h1>Welcome to MegaZen</h1>
+<h2 id="downloads-header">Current Downloads</h2>
+<div id="downloads"></div>
+<h2 id="completed-header">Complete Downloads</h2>
+<div id="completed"></div>
+<h2 id="errors-header">Errors</h2>
+<div id="errors"></div>
+</body>
+<script>
+    const downloads = document.getElementById("downloads");
+    const completed = document.getElementById("completed");
+    const errors = document.getElementById("errors");
+
+    const dlsHeader = document.getElementById("downloads-header");
+    const completedHeader = document.getElementById("completed-header");
+    const errorsHeader = document.getElementById("errors-header");
+
+    dlsHeader.style.visibility = "hidden";
+    completedHeader.style.visibility = "hidden";
+    errorsHeader.style.visibility = "hidden";
+
+
+    const socket = new WebSocket("ws://" + window.location.host + "/ws/downloads");
+
+    socket.onopen = function() {
+        console.log("Connected to websocket");
+    };
+
+    socket.onmessage = function(event) {
+        let data = JSON.parse(event.data);
+        console.log(data);
+
+        downloads.innerHTML = "";
+        errors.innerHTML = "";
+        completed.innerHTML = "";
+        if (data['downloads'].length > 0) {
+            dlsHeader.style.visibility = "visible";
+            completedHeader.style.visibility = "visible";
+            data['downloads'].forEach(function(dl) {
+                if(dl['complete']) {
+                    completed.innerHTML += `<p>${dl['path']}</p><hr />`;
+                }
+                else {
+                    downloads.innerHTML += `<p>${dl['progress']}% ${dl['path']}</p><hr />`;
+                }
+            });
+        }
+
+        if (data['errors'].length > 0) {
+            errorsHeader.style.visibility = "visible";
+            data['errors'].forEach(function(error) {
+                errors.innerHTML += `<p>${error}</p><hr />`;
+            });
+        }
+    };
+
+    socket.onclose = function() {
+        console.log("Disconnected from websocket");
+    };
+
+    socket.onerror = function(error) {
+        console.log("Error: " + error);
+    };
+
+    setInterval(function() {
+        socket.send("ping");
+    }, 250);
+
+</script>
+</html>

@@ -14,16 +14,13 @@ import (
 )
 
 type bunkrEntry struct {
-	host    models.Host
-	baseUrl string
-	title   string
-	models.FileHostEntry
+	Extractor
 }
 
 func NewBunkr(url string) *bunkrEntry {
-	downloader := bunkrEntry{baseUrl: url, host: models.Host{
+	downloader := bunkrEntry{Extractor{originUrl: url, host: models.Host{
 		Name: "Bunkr",
-	}}
+	}}}
 	return &downloader
 }
 
@@ -31,8 +28,8 @@ func (dl *bunkrEntry) Host() *models.Host {
 	return &dl.host
 }
 
-func (dl *bunkrEntry) BaseUrl() string {
-	return dl.baseUrl
+func (dl *bunkrEntry) OriginUrl() string {
+	return dl.originUrl
 }
 
 func (dl *bunkrEntry) Title() string {
@@ -45,9 +42,9 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	if strings.Contains(dl.baseUrl, "stream.bunkr.is") {
+	if strings.Contains(dl.originUrl, "stream.bunkr.is") {
 
-		path, err := filepath.Abs("./downloads/" + filepath.Base(dl.baseUrl))
+		path, err := filepath.Abs("./downloads/" + filepath.Base(dl.originUrl))
 
 		if err != nil {
 			return err
@@ -60,14 +57,14 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 		}
 
 		downloads = append(downloads, models.Download{
-			Url:  strings.Replace(dl.baseUrl, "stream.bunkr.is/v/", "stream.bunkr.is/d/", 1),
+			Url:  strings.Replace(dl.originUrl, "stream.bunkr.is/v/", "stream.bunkr.is/d/", 1),
 			Path: savePath,
 			Host: &dl.host,
 		})
 		return nil
 	}
 
-	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
+	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err

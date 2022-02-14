@@ -13,16 +13,13 @@ import (
 )
 
 type cyberdropEntry struct {
-	host    models.Host
-	baseUrl string
-	title   string
-	models.FileHostEntry
+	Extractor
 }
 
 func NewCyberdrop(url string) *cyberdropEntry {
-	downloader := cyberdropEntry{baseUrl: url, host: models.Host{
+	downloader := cyberdropEntry{Extractor{originUrl: url, host: models.Host{
 		Name: "Cyberdrop",
-	}}
+	}}}
 	return &downloader
 }
 
@@ -30,8 +27,8 @@ func (dl *cyberdropEntry) Host() *models.Host {
 	return &dl.host
 }
 
-func (dl *cyberdropEntry) BaseUrl() string {
-	return dl.baseUrl
+func (dl *cyberdropEntry) OriginUrl() string {
+	return dl.originUrl
 }
 
 func (dl *cyberdropEntry) Title() string {
@@ -44,7 +41,7 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
+	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err

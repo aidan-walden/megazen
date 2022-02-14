@@ -13,16 +13,13 @@ import (
 )
 
 type putmegaEntry struct {
-	host    models.Host
-	baseUrl string
-	title   string
-	models.FileHostEntry
+	Extractor
 }
 
 func NewPutmega(url string) *putmegaEntry {
-	downloader := putmegaEntry{baseUrl: url, host: models.Host{
+	downloader := putmegaEntry{Extractor{originUrl: url, host: models.Host{
 		Name: "PutMega",
-	}}
+	}}}
 	return &downloader
 }
 
@@ -30,8 +27,8 @@ func (dl *putmegaEntry) Host() *models.Host {
 	return &dl.host
 }
 
-func (dl *putmegaEntry) BaseUrl() string {
-	return dl.baseUrl
+func (dl *putmegaEntry) OriginUrl() string {
+	return dl.originUrl
 }
 
 func (dl *putmegaEntry) Title() string {
@@ -44,7 +41,7 @@ func (dl *putmegaEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	res, err := models.WaitForSuccessfulRequest(dl.baseUrl, &dl.host.Timeouts)
+	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err

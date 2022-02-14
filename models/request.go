@@ -13,7 +13,7 @@ func WaitForSuccessfulRequest(url string, timeouts *int32) (*http.Response, erro
 			return nil, err
 		}
 
-		if fetchRes.StatusCode == 429 {
+		if fetchRes.StatusCode == http.StatusTooManyRequests {
 			fmt.Println("Waiting")
 			*timeouts++
 			time.Sleep(time.Second * time.Duration(10*(*timeouts)))
