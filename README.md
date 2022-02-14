@@ -14,7 +14,16 @@ MegaZen is a media downloader written in Go that takes requests through a REST A
 ## Request endpoints
 
     POST /api/submit
-Takes a JSON array payload containing the URLs you wish to download. You may mix and match hosts. All downloads will be output to a directory named downloads, in the same folder as the program executable.
+Takes a JSON array containing a JSON object for each download to be executed with the following fields:
+    
+- url
+- password
+
+
+    POST /api/submitBulk
+Takes a JSON array payload containing the URLs you wish to download. Assumes all submissions have no password.
+
+All downloads will be output to a directory named downloads, in the same folder as the program executable.
 ## TODO:
 
 - Support for mega.nz

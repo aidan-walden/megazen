@@ -1,6 +1,8 @@
 package extractors
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,11 +15,12 @@ import (
 
 type gofileEntry struct {
 	Extractor
-	token string
+	token    string
+	password string
 }
 
-func NewGofile(url string, token string) *gofileEntry {
-	downloader := gofileEntry{Extractor{originUrl: url, host: models.Host{Name: "Gofile"}}, token}
+func NewGofile(url string, token string, password string) *gofileEntry {
+	downloader := gofileEntry{Extractor{originUrl: url, host: models.Host{Name: "Gofile"}}, token, password}
 	return &downloader
 }
 
@@ -41,7 +44,13 @@ func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
 
 	contentId := filepath.Base(dl.originUrl)
 
-	res, err := models.WaitForSuccessfulRequest("https://apiv2.gofile.io/getContent?contentId="+contentId+"&token="+dl.token+"&websiteToken=websiteToken&cache=true", &dl.host.Timeouts)
+	requestUrl := "https://apiv2.gofile.io/getContent?contentId=" + contentId + "&token=" + dl.token + "&websiteToken=websiteToken&cache=true"
+	if dl.password != "" {
+		sha256Password := sha256.Sum256([]byte(dl.password))
+		requestUrl += "&password=" + hex.EncodeToString(sha256Password[:])
+	}
+
+	res, err := models.WaitForSuccessfulRequest(requestUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err

@@ -1,13 +1,10 @@
 package download_controller
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/panjf2000/ants/v2"
 	"megazen/models"
 	"megazen/models/extractors"
-	"net/http"
 	"strings"
 	"sync"
 )
@@ -76,61 +73,34 @@ func New(concurrentDownloadsCount int) *downloadController {
 	}
 }
 
-func (dlman *downloadController) SubmitDownload(c *gin.Context) {
-	c.Header("Content-Type", "application/json")
-
-	reqBody, err := c.GetRawData()
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Internal Server Error: " + err.Error(),
-		})
-		return
-	}
-
-	urls := make([]string, 0)
-
-	err = json.Unmarshal(reqBody, &urls)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Bad Request",
-		})
-		return
-	}
-
+func (dlman *downloadController) SubmitDownload(urls *[]models.DownloadSubmission) *[]string {
 	// Set up channel to receive URLs
-	queue := make(chan *[]models.Download, len(urls))
-	errorsChannel := make(chan error, len(urls))
+	queue := make(chan *[]models.Download, len(*urls))
+	errorsChannel := make(chan error, len(*urls))
 	var wg sync.WaitGroup
 
 	unknownUrls := make([]string, 0)
 	createdDownloaders := make([]models.FileHostEntry, 0)
 
-	for _, url := range urls {
+	for _, url := range *urls {
 
-		if strings.Contains(url, "bunkr") {
-			createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url))
-		} else if strings.Contains(url, "gofile.io/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url, "AO3uS259LDIqUdRIXQZcDECeG2RxGKiX"))
-		} else if strings.Contains(url, "cyberdrop.me/a/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url))
-		} else if strings.Contains(url, "putme.ga/album/") || strings.Contains(url, "pixl.is/album/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewPutmega(url))
-		} else if strings.Contains(url, "pixeldrain.com/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewPixeldrain(url, strings.Contains(url, "/l/")))
-		} else if strings.Contains(url, "anonfiles.com/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewAnonfiles(url))
+		if strings.Contains(url.Url, "bunkr") {
+			createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url.Url))
+		} else if strings.Contains(url.Url, "gofile.io/") {
+			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url.Url, "AO3uS259LDIqUdRIXQZcDECeG2RxGKiX", url.Password))
+		} else if strings.Contains(url.Url, "cyberdrop.me/a/") {
+			createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url.Url))
+		} else if strings.Contains(url.Url, "putme.ga/album/") || strings.Contains(url.Url, "pixl.is/album/") {
+			createdDownloaders = append(createdDownloaders, extractors.NewPutmega(url.Url))
+		} else if strings.Contains(url.Url, "pixeldrain.com/") {
+			createdDownloaders = append(createdDownloaders, extractors.NewPixeldrain(url.Url, strings.Contains(url.Url, "/l/")))
+		} else if strings.Contains(url.Url, "anonfiles.com/") {
+			createdDownloaders = append(createdDownloaders, extractors.NewAnonfiles(url.Url))
 		} else {
-			unknownUrls = append(unknownUrls, url)
+			unknownUrls = append(unknownUrls, url.Url)
 		}
 
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "Downloads submitted",
-		"unknownUrls": unknownUrls,
-	})
 
 	for _, downloader := range createdDownloaders {
 		wg.Add(1)
@@ -169,7 +139,7 @@ func (dlman *downloadController) SubmitDownload(c *gin.Context) {
 		}
 	}()
 
-	return
+	return &unknownUrls
 }
 
 func (dlman *downloadController) ExecuteDownloads(amountDownloads int) {

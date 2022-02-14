@@ -34,6 +34,11 @@ type DownloadResponse struct {
 	Progress float64 `json:"progress"` // Progress Percentage of the download completed
 }
 
+type DownloadSubmission struct {
+	Url      string `json:"url"`
+	Password string `json:"password"`
+}
+
 // FileHostEntry Represents one link from a generic file host
 type FileHostEntry interface {
 	Host() *Host

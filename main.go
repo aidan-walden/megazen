@@ -15,6 +15,7 @@ func main() {
 	api := r.Group("/api")
 	{
 		api.POST("/submit", routes.SubmitDownload)
+		api.POST("/submitBulk", routes.SubmitDownloadBulk)
 	}
 
 	websocket := r.Group("/ws")
