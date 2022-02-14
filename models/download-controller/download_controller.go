@@ -10,9 +10,8 @@ import (
 )
 
 type DownloadQueue struct {
-	active   []*models.Download
-	waiting  []*models.Download
-	complete []*models.Download
+	processed []*models.Download
+	waiting   []*models.Download
 }
 
 var encounteredErrors = make([]*error, 0)
@@ -24,26 +23,21 @@ type downloadController struct {
 }
 
 var downloadQueue = &DownloadQueue{
-	active:   make([]*models.Download, 0),
-	waiting:  make([]*models.Download, 0),
-	complete: make([]*models.Download, 0),
+	processed: make([]*models.Download, 0),
+	waiting:   make([]*models.Download, 0),
 }
 
 func download(queue *DownloadQueue, mu *sync.RWMutex) (err error) {
 	mu.Lock()
 	url := queue.waiting[0]
 	queue.waiting = queue.waiting[1:]
-	queue.active = append(queue.active, url)
+	queue.processed = append(queue.processed, url)
 	mu.Unlock()
 	defer func(url *models.Download) {
 		err := url.DownloadFile()
 		if err != nil {
 			fmt.Println("download error", err)
 		}
-		mu.Lock()
-		queue.active = queue.active[1:]
-		queue.complete = append(queue.complete, url)
-		mu.Unlock()
 	}(url)
 
 	return
@@ -165,7 +159,7 @@ func (dlman *downloadController) ExecuteDownloads(amountDownloads int) {
 
 func (dlman *downloadController) GetActiveDownloads() *[]models.DownloadResponse {
 	downloads := make([]models.DownloadResponse, 0)
-	for _, download := range downloadQueue.active {
+	for _, download := range downloadQueue.processed {
 		downloads = append(downloads, models.DownloadResponse{
 			Url:      download.Url,
 			Path:     download.Path,
