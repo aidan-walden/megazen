@@ -31,9 +31,9 @@ var downloadQueue = &DownloadQueue{
 
 func download(queue *DownloadQueue, mu *sync.RWMutex) (err error) {
 	mu.Lock()
-	url := (*queue).waiting[0]
-	(*queue).waiting = (*queue).waiting[1:]
-	(*queue).active = append((*queue).active, url)
+	url := queue.waiting[0]
+	queue.waiting = queue.waiting[1:]
+	queue.active = append(queue.active, url)
 	mu.Unlock()
 	defer func(url *models.Download) {
 		err := url.DownloadFile()
@@ -41,11 +41,8 @@ func download(queue *DownloadQueue, mu *sync.RWMutex) (err error) {
 			fmt.Println("download error", err)
 		}
 		mu.Lock()
-		queue = &DownloadQueue{
-			active:   (*queue).active[1:],
-			waiting:  (*queue).waiting,
-			complete: append((*queue).complete, url),
-		}
+		queue.active = queue.active[1:]
+		queue.complete = append(queue.complete, url)
 		mu.Unlock()
 	}(url)
 
@@ -119,14 +116,15 @@ func (dlman *downloadController) SubmitDownload(urls *[]models.DownloadSubmissio
 
 		added := 0
 
+		dlman.mu.Lock()
 		for url := range queue {
-			dlman.mu.Lock()
-			for _, download := range *url {
+			for i := range *url {
+				download := (*url)[i]
 				downloadQueue.waiting = append(downloadQueue.waiting, &download)
 				added++
 			}
-			dlman.mu.Unlock()
 		}
+		dlman.mu.Unlock()
 
 		go dlman.ExecuteDownloads(added)
 	}()
