@@ -172,6 +172,22 @@ func (dlman *downloadController) GetActiveDownloads() *[]models.DownloadResponse
 	return &downloads
 }
 
+func (dlman *downloadController) GetWaitingDownloads() *[]models.DownloadResponse {
+	downloads := make([]models.DownloadResponse, 0)
+	for _, download := range downloadQueue.waiting {
+		downloads = append(downloads, models.DownloadResponse{
+			Url:      download.Url,
+			Path:     download.Path,
+			Complete: false,
+			Total:    download.Total(),
+			Current:  0,
+			Progress: 0,
+		})
+	}
+
+	return &downloads
+}
+
 func (dlman *downloadController) GetErrors() []*error {
 	return encounteredErrors
 }
