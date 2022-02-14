@@ -24,6 +24,9 @@ Takes a JSON array containing a JSON object for each download to be executed wit
 Takes a JSON array payload containing the URLs you wish to download. Assumes all submissions have no password.
 
 All downloads will be output to a directory named downloads, in the same folder as the program executable.
+
+A barebones download progress tracker can be found hosted at localhost:3000
+
 ## TODO:
 
 - Support for mega.nz
