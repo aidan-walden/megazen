@@ -7,6 +7,7 @@ import (
 	"megazen/models/extractors"
 	"strings"
 	"sync"
+	"time"
 )
 
 type DownloadQueue struct {
@@ -27,18 +28,26 @@ var downloadQueue = &DownloadQueue{
 	waiting:   make([]*models.Download, 0),
 }
 
-func download(queue *DownloadQueue, mu *sync.RWMutex) (err error) {
+func download(queue *DownloadQueue, mu *sync.RWMutex) {
 	mu.Lock()
 	url := queue.waiting[0]
 	queue.waiting = queue.waiting[1:]
 	queue.processed = append(queue.processed, url)
 	mu.Unlock()
-	defer func(url *models.Download) {
+	for {
 		err := url.DownloadFile()
 		if err != nil {
-			fmt.Println("download error", err)
+			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host") {
+				time.Sleep(time.Second * 15)
+				continue
+			} else {
+				fmt.Println(err)
+				encounteredErrors = append(encounteredErrors, &err)
+				break
+			}
 		}
-	}(url)
+		break
+	}
 
 	return
 }
@@ -50,10 +59,7 @@ func New(concurrentDownloadsCount int) *downloadController {
 	var mu sync.RWMutex
 
 	pool, _ := ants.NewPoolWithFunc(concurrentDownloadsCount, func(i interface{}) {
-		err := download(downloadQueue, &mu)
-		if err != nil {
-			fmt.Println("download error", err)
-		}
+		download(downloadQueue, &mu)
 		defer wg.Done()
 	})
 
@@ -74,6 +80,8 @@ func (dlman *downloadController) SubmitDownload(urls *[]models.DownloadSubmissio
 	createdDownloaders := make([]models.FileHostEntry, 0)
 
 	for _, url := range *urls {
+
+		url.Url = strings.TrimSpace(url.Url)
 
 		if strings.Contains(url.Url, "bunkr") {
 			createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url.Url))

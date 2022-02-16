@@ -91,6 +91,7 @@ func (dl *Download) DownloadFile() error {
 	for {
 		// Get the data
 		req, err := http.NewRequest("GET", dl.Url, nil)
+		req.Close = true
 		if err != nil {
 			return err
 		}
@@ -126,15 +127,15 @@ func (dl *Download) DownloadFile() error {
 		}
 	}
 
+	dl.Reader = res.Body
+	dl.total = res.ContentLength
+
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			panic(err)
+			fmt.Println("Error closing body:", err)
 		}
 	}(res.Body)
-
-	dl.Reader = res.Body
-	dl.total = res.ContentLength
 
 	// Check if this file has already been downloaded
 	stat, err := os.Stat(dl.Path)
@@ -167,6 +168,7 @@ func (dl *Download) DownloadFile() error {
 		if err != nil {
 			return err
 		}
+		return err
 	}
 
 	err = out.Close()
@@ -177,10 +179,6 @@ func (dl *Download) DownloadFile() error {
 	// Rename the file
 	err = os.Rename(dl.Path+".tmp", dl.Path)
 	if err != nil {
-		err := out.Close()
-		if err != nil {
-			return err
-		}
 		return err
 	}
 
