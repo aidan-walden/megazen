@@ -77,13 +77,7 @@
 
             let errorsStr = '';
             data['errors'].forEach(function(error) {
-                for (let key in error) {
-                    errorsStr += `<p>${key}: ${error[key]}</p>`
-                }
-                if (errorsStr.length === 0) {
-                    errorsStr += `<p>Empty error (no error encountered?)</p>`;
-                }
-                errorsStr += `<hr />`;
+                errorsStr += `<p>${error}</p><hr />`
             });
 
             errors.innerHTML = errorsStr;
