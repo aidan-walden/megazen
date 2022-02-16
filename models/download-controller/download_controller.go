@@ -42,7 +42,8 @@ func download(queue *DownloadQueue, mu *sync.RWMutex) {
 				continue
 			} else {
 				fmt.Println(err)
-				encounteredErrors = append(encounteredErrors, &err)
+				errs := url.Errors()
+				encounteredErrors = append(encounteredErrors, *errs...)
 				break
 			}
 		}

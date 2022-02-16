@@ -22,6 +22,7 @@ type Download struct {
 	total    int64   // total Expected length of the file in bytes
 	current  int64   // current Amount of bytes downloaded
 	progress float64 // Progress Percentage of the download completed
+	errors   *[]*error
 	io.Reader
 }
 
@@ -73,12 +74,21 @@ func (dl *Download) Current() int64 {
 	return dl.current
 }
 
+func (dl *Download) Errors() *[]*error {
+	return dl.errors
+}
+
 var re = regexp.MustCompile("[|&;$%@\"<>()+,?]")
 
 // DownloadFile handles downloading files from their direct URLs
 // and saving them to the specified path.
 func (dl *Download) DownloadFile() error {
 	fmt.Println(dl.Url)
+
+	defer func() {
+		dl.complete = true
+	}()
+
 	var res *http.Response
 
 	// Make file path valid
@@ -104,6 +114,7 @@ func (dl *Download) DownloadFile() error {
 
 		fetchRes, err := client.Do(req)
 		if err != nil {
+			*dl.errors = append(*dl.errors, &err)
 			return err
 		}
 
@@ -133,6 +144,7 @@ func (dl *Download) DownloadFile() error {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
+			*dl.errors = append(*dl.errors, &err)
 			fmt.Println("Error closing body:", err)
 		}
 	}(res.Body)
@@ -145,6 +157,8 @@ func (dl *Download) DownloadFile() error {
 			fmt.Println("File already downloaded")
 			dl.complete = true
 			return nil
+		} else {
+			*dl.errors = append(*dl.errors, &err)
 		}
 	}
 
@@ -154,8 +168,10 @@ func (dl *Download) DownloadFile() error {
 	}
 	out, err := os.Create(dl.Path + ".tmp")
 	if err != nil {
+		*dl.errors = append(*dl.errors, &err)
 		err := out.Close()
 		if err != nil {
+			*dl.errors = append(*dl.errors, &err)
 			return err
 		}
 		return err
@@ -164,8 +180,10 @@ func (dl *Download) DownloadFile() error {
 	// Write the body to file
 	_, err = io.Copy(out, dl)
 	if err != nil {
+		*dl.errors = append(*dl.errors, &err)
 		err := out.Close()
 		if err != nil {
+			*dl.errors = append(*dl.errors, &err)
 			return err
 		}
 		return err
@@ -173,17 +191,18 @@ func (dl *Download) DownloadFile() error {
 
 	err = out.Close()
 	if err != nil {
+		*dl.errors = append(*dl.errors, &err)
 		return err
 	}
 
 	// Rename the file
 	err = os.Rename(dl.Path+".tmp", dl.Path)
 	if err != nil {
+		*dl.errors = append(*dl.errors, &err)
 		return err
 	}
 
 	fmt.Println(dl.Path + ": Download complete")
 
-	dl.complete = true
 	return nil
 }
