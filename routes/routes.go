@@ -121,7 +121,7 @@ func DownloadsWebsocket(c *gin.Context) {
 		downloads := manager.GetActiveDownloads()
 		waiting := manager.GetWaitingDownloads()
 		for _, err := range manager.GetErrors() {
-			errors = append(errors, (*err).Error())
+			errors = append(errors, err.Error())
 		}
 
 		err = conn.WriteJSON(gin.H{

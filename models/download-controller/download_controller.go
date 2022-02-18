@@ -15,7 +15,7 @@ type DownloadQueue struct {
 	waiting   []*models.Download
 }
 
-var encounteredErrors = make([]*error, 0)
+var encounteredErrors = make([]error, 0)
 
 type downloadController struct {
 	pool *ants.PoolWithFunc
@@ -43,7 +43,7 @@ func download(queue *DownloadQueue, mu *sync.RWMutex) {
 			} else {
 				fmt.Println(err)
 				errs := url.Errors()
-				encounteredErrors = append(encounteredErrors, *errs...)
+				encounteredErrors = append(encounteredErrors, errs...)
 				break
 			}
 		}
@@ -135,7 +135,7 @@ func (dlman *downloadController) SubmitDownload(urls *[]models.DownloadSubmissio
 	go func() {
 		err := <-errorsChannel
 		if err != nil {
-			encounteredErrors = append(encounteredErrors, &err)
+			encounteredErrors = append(encounteredErrors, err)
 			// fmt.Println("Parsing error", err)
 		}
 	}()
@@ -197,6 +197,6 @@ func (dlman *downloadController) GetWaitingDownloads() *[]models.DownloadRespons
 	return &downloads
 }
 
-func (dlman *downloadController) GetErrors() []*error {
+func (dlman *downloadController) GetErrors() []error {
 	return encounteredErrors
 }
