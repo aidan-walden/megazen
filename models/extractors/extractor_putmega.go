@@ -66,11 +66,7 @@ func (dl *putmegaEntry) parseAlbum(doc *goquery.Document, downloads *[]models.Do
 			panic(err)
 		}
 
-		savePath, err := filepath.Abs("./downloads/" + dl.title + "/" + fileTitle)
-
-		if err != nil {
-			panic(err)
-		}
+		savePath := filepath.Join(dl.title+"/", fileTitle)
 
 		download := models.Download{
 			Url:  link,
