@@ -95,7 +95,7 @@ func (dl *Download) DownloadFile() error {
 	var res *http.Response
 
 	// Make file path valid
-	dl.Path = utils.ValidPathString(dl.Path)
+	dl.Path = filepath.Clean("./downloads/" + dl.Path)
 	fmt.Println("Downloading to:", dl.Path)
 
 	jar, err := cookiejar.New(nil)
@@ -113,6 +113,7 @@ func (dl *Download) DownloadFile() error {
 		req, err := http.NewRequest("GET", dl.Url, nil)
 		req.Close = true
 		if err != nil {
+			dl.errors = append(dl.errors, err)
 			return err
 		}
 
@@ -163,8 +164,7 @@ func (dl *Download) DownloadFile() error {
 			path = strings.Replace(path, "\"", "", -1)
 
 			dir, _ := filepath.Split(dl.Path)
-
-			dl.Path = dir + utils.ValidPathString(path)
+			dl.Path = dir + utils.ValidTitleString(path)
 
 			fmt.Println("Downloading to:", dl.Path)
 		}
@@ -190,11 +190,13 @@ func (dl *Download) DownloadFile() error {
 			return nil
 		} else {
 			dl.errors = append(dl.errors, err)
+			return err
 		}
 	}
 
 	// Create the file
 	if err := os.MkdirAll(filepath.Dir(dl.Path), 0755); err != nil {
+		dl.errors = append(dl.errors, err)
 		return err
 	}
 	out, err := os.Create(dl.Path + ".tmp")

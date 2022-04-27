@@ -2,13 +2,14 @@ package extractors
 
 import (
 	"errors"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
 	"megazen/models/utils"
 	"net/http"
 	"net/url"
 	"path/filepath"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type anonfilesEntry struct {

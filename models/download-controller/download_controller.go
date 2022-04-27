@@ -113,7 +113,7 @@ func (dlman *downloadController) SubmitDownload(urls *[]models.DownloadSubmissio
 			if strings.Contains(url.Url, "bunkr") {
 				createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url.Url))
 			} else if strings.Contains(url.Url, "gofile.io/") {
-				createdDownloaders = append(createdDownloaders, extractors.NewGofile(url.Url, "wJo7Hki52tVOGbFYrKXt0Z9sdceOLaSB", url.Password))
+				createdDownloaders = append(createdDownloaders, extractors.NewGofile(url.Url, "1J63qkFMeGDPcVWUj5GnZFoXf5QNHVhu", url.Password))
 			} else if strings.Contains(url.Url, "cyberdrop.me/a/") {
 				createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url.Url))
 			} else if strings.Contains(url.Url, "putme.ga/") || strings.Contains(url.Url, "pixl.is/") || strings.Contains(url.Url, "putmega.com/") || strings.Contains(url.Url, "jpg.church/") {

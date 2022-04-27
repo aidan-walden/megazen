@@ -2,8 +2,8 @@ package utils
 
 import "regexp"
 
-var re = regexp.MustCompile("[|&;$%@\"<>()+,?/]")
+var re = regexp.MustCompile("[|&;$%@\"<>()+,?]")
 
-func ValidPathString(path string) string {
+func ValidTitleString(path string) string {
 	return re.ReplaceAllString(path, "-")
 }

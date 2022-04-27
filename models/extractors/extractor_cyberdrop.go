@@ -3,7 +3,6 @@ package extractors
 import (
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
 	"megazen/models/utils"
@@ -11,6 +10,8 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type cyberdropEntry struct {
@@ -68,7 +69,7 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 	}
 
 	dl.title = strings.TrimSpace(doc.Find("#title").Text())
-	dl.title = utils.ValidPathString(dl.title)
+	dl.title = utils.ValidTitleString(dl.title)
 	fmt.Println("Title: ", dl.title)
 
 	doc.Find("a.image").Each(func(i int, s *goquery.Selection) {
@@ -84,11 +85,7 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 			panic(err)
 		}
 
-		savePath, err := filepath.Abs("./downloads/" + dl.title + "/" + fileTitle)
-
-		if err != nil {
-			panic(err)
-		}
+		savePath := filepath.Join(dl.title + "/" + fileTitle)
 
 		download := models.Download{
 			Url:  link,
