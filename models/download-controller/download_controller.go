@@ -2,12 +2,14 @@ package download_controller
 
 import (
 	"fmt"
-	"github.com/panjf2000/ants/v2"
 	"megazen/models"
 	"megazen/models/extractors"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/panjf2000/ants/v2"
 )
 
 type DownloadQueue struct {
@@ -16,6 +18,8 @@ type DownloadQueue struct {
 }
 
 var encounteredErrors = make([]error, 0)
+
+var kemonoReg = regexp.MustCompile(`^(http)s?://(?:www\.)?(kemono|coomer)\.party/\w+/\w+/\w+/?`)
 
 type downloadController struct {
 	pool *ants.PoolWithFunc
@@ -28,33 +32,48 @@ var downloadQueue = &DownloadQueue{
 	waiting:   make([]*models.Download, 0),
 }
 
-func download(queue *DownloadQueue, mu *sync.RWMutex) {
-	mu.Lock()
-	url := queue.waiting[0]
-	queue.waiting = queue.waiting[1:]
-	queue.processed = append(queue.processed, url)
-	mu.Unlock()
+func downloadLoop(dl *models.Download) {
 	for {
-		err := url.DownloadFile()
+		err := dl.DownloadFile()
 		if err != nil {
 			if strings.Contains(err.Error(), "An existing connection was forcibly closed by the remote host") {
 				time.Sleep(time.Second * 15)
 				continue
 			} else {
 				fmt.Println(err)
-				errs := url.Errors()
+				errs := dl.Errors()
+				for _, err := range errs {
+					fmt.Println(err)
+				}
 				encounteredErrors = append(encounteredErrors, errs...)
 				break
 			}
 		}
 		break
 	}
+}
 
-	return
+func download(queue *DownloadQueue, mu *sync.RWMutex) {
+	mu.Lock()
+	dl := queue.waiting[0]
+
+	queue.waiting = queue.waiting[1:]
+	queue.processed = append(queue.processed, dl)
+	mu.Unlock()
+	if dl.Host.Wg != nil {
+		dl.Host.Wg.Add(1)
+		doDownloadLoop := func() {
+			downloadLoop(dl)
+			dl.Host.Wg.Done()
+		}
+		dl.Host.Pool.Submit(doDownloadLoop)
+	} else {
+		downloadLoop(dl)
+	}
+
 }
 
 func New(concurrentDownloadsCount int) *downloadController {
-	defer ants.Release()
 
 	var wg sync.WaitGroup
 	var mu sync.RWMutex
@@ -84,22 +103,29 @@ func (dlman *downloadController) SubmitDownload(urls *[]models.DownloadSubmissio
 
 		url.Url = strings.TrimSpace(url.Url)
 
-		if strings.Contains(url.Url, "bunkr") {
-			createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url.Url))
-		} else if strings.Contains(url.Url, "gofile.io/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewGofile(url.Url, "AO3uS259LDIqUdRIXQZcDECeG2RxGKiX", url.Password))
-		} else if strings.Contains(url.Url, "cyberdrop.me/a/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url.Url))
-		} else if strings.Contains(url.Url, "putme.ga/album/") || strings.Contains(url.Url, "pixl.is/album/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewPutmega(url.Url))
-		} else if strings.Contains(url.Url, "pixeldrain.com/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewPixeldrain(url.Url, strings.Contains(url.Url, "/l/")))
-		} else if strings.Contains(url.Url, "anonfiles.com/") {
-			createdDownloaders = append(createdDownloaders, extractors.NewAnonfiles(url.Url))
+		if url.IsDirect {
+			entry := extractors.NewDirect(url.Url)
+			if url.Title != "" {
+				entry.SetTitle(url.Title)
+			}
+			createdDownloaders = append(createdDownloaders, entry)
 		} else {
-			unknownUrls = append(unknownUrls, url.Url)
+			if strings.Contains(url.Url, "bunkr") {
+				createdDownloaders = append(createdDownloaders, extractors.NewBunkr(url.Url))
+			} else if strings.Contains(url.Url, "gofile.io/") {
+				createdDownloaders = append(createdDownloaders, extractors.NewGofile(url.Url, "wJo7Hki52tVOGbFYrKXt0Z9sdceOLaSB", url.Password))
+			} else if strings.Contains(url.Url, "cyberdrop.me/a/") {
+				createdDownloaders = append(createdDownloaders, extractors.NewCyberdrop(url.Url))
+			} else if strings.Contains(url.Url, "putme.ga/") || strings.Contains(url.Url, "pixl.is/") || strings.Contains(url.Url, "putmega.com/") || strings.Contains(url.Url, "jpg.church/") {
+				createdDownloaders = append(createdDownloaders, extractors.NewPutmega(url.Url))
+			} else if strings.Contains(url.Url, "pixeldrain.com/") {
+				createdDownloaders = append(createdDownloaders, extractors.NewPixeldrain(url.Url, strings.Contains(url.Url, "/l/")))
+			} else if strings.Contains(url.Url, "anonfiles.com/") {
+				createdDownloaders = append(createdDownloaders, extractors.NewAnonfiles(url.Url))
+			} else {
+				unknownUrls = append(unknownUrls, url.Url)
+			}
 		}
-
 	}
 
 	for _, downloader := range createdDownloaders {
@@ -144,13 +170,12 @@ func (dlman *downloadController) SubmitDownload(urls *[]models.DownloadSubmissio
 }
 
 func (dlman *downloadController) ExecuteDownloads(amountDownloads int) {
+
 	dlman.wg.Add(amountDownloads)
 	for i := 0; i < amountDownloads; i++ {
-		fmt.Println("Submitting download")
 		err := dlman.pool.Invoke(int32(i))
 		if err != nil {
 			panic(err)
-			return
 		}
 	}
 
@@ -163,7 +188,6 @@ func (dlman *downloadController) ExecuteDownloads(amountDownloads int) {
 	//	fmt.Println("All downloads complete")
 	//}
 
-	return
 }
 
 func (dlman *downloadController) GetActiveDownloads() *[]models.DownloadResponse {

@@ -5,24 +5,27 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"megazen/models/utils"
 	"net/http"
+	"net/http/cookiejar"
 	"os"
 	"path/filepath"
-	"regexp"
+	"strings"
 	"sync/atomic"
 	"time"
 )
 
 // Download represents one direct download link
 type Download struct {
-	Url      string
-	Host     *Host
-	Path     string
-	complete bool
-	total    int64   // total Expected length of the file in bytes
-	current  int64   // current Amount of bytes downloaded
-	progress float64 // Progress Percentage of the download completed
-	errors   []error
+	Url                   string
+	Host                  *Host
+	Path                  string
+	UseContentDisposition bool
+	complete              bool
+	total                 int64   // total Expected length of the file in bytes
+	current               int64   // current Amount of bytes downloaded
+	progress              float64 // Progress Percentage of the download completed
+	errors                []error
 	io.Reader
 }
 
@@ -38,6 +41,8 @@ type DownloadResponse struct {
 type DownloadSubmission struct {
 	Url      string `json:"url"`
 	Password string `json:"password"`
+	IsDirect bool   `json:"is_direct"`
+	Title    string `json:"title"`
 }
 
 // FileHostEntry Represents one link from a generic file host
@@ -78,8 +83,6 @@ func (dl *Download) Errors() []error {
 	return dl.errors
 }
 
-var re = regexp.MustCompile("[|&;$%@\"<>()+,?]")
-
 // DownloadFile handles downloading files from their direct URLs
 // and saving them to the specified path.
 func (dl *Download) DownloadFile() error {
@@ -92,10 +95,17 @@ func (dl *Download) DownloadFile() error {
 	var res *http.Response
 
 	// Make file path valid
-	dl.Path = re.ReplaceAllString(dl.Path, "-")
+	dl.Path = utils.ValidPathString(dl.Path)
 	fmt.Println("Downloading to:", dl.Path)
 
-	client := &http.Client{}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return err
+	}
+
+	client := &http.Client{
+		Jar: jar,
+	}
 
 	// c.L.Lock()
 	for {
@@ -108,7 +118,15 @@ func (dl *Download) DownloadFile() error {
 
 		if dl.Host.Headers != nil {
 			for k, v := range *dl.Host.Headers {
+				fmt.Println("Setting header:", k, v)
 				req.Header.Set(k, v)
+			}
+		}
+
+		if dl.Host.Cookies != nil {
+			for _, c := range dl.Host.Cookies {
+				fmt.Println("Setting cookie:", c.Name, c.Value)
+				req.AddCookie(c)
 			}
 		}
 
@@ -120,7 +138,7 @@ func (dl *Download) DownloadFile() error {
 
 		if fetchRes.StatusCode != 200 {
 			if fetchRes.StatusCode == 404 {
-				return nil
+				return errors.New("File not found: " + dl.Url)
 			} else if fetchRes.StatusCode == 429 {
 				dl.Host.Lock.Lock()
 				fmt.Println("Download Waiting, timeouts = ", dl.Host.Timeouts)
@@ -135,6 +153,20 @@ func (dl *Download) DownloadFile() error {
 			atomic.StoreInt32(&dl.Host.Timeouts, 0)
 			res = fetchRes
 			break
+		}
+	}
+
+	if dl.UseContentDisposition {
+		if res.Header.Get("Content-Disposition") != "" {
+			path := strings.Split(res.Header.Get("Content-Disposition"), "filename=")[1]
+			path = strings.Split(path, ";")[0]
+			path = strings.Replace(path, "\"", "", -1)
+
+			dir, _ := filepath.Split(dl.Path)
+
+			dl.Path = dir + utils.ValidPathString(path)
+
+			fmt.Println("Downloading to:", dl.Path)
 		}
 	}
 
@@ -155,7 +187,6 @@ func (dl *Download) DownloadFile() error {
 	if err == nil {
 		if stat.Size() == dl.total {
 			fmt.Println("File already downloaded")
-			dl.complete = true
 			return nil
 		} else {
 			dl.errors = append(dl.errors, err)
@@ -201,8 +232,6 @@ func (dl *Download) DownloadFile() error {
 		dl.errors = append(dl.errors, err)
 		return err
 	}
-
-	fmt.Println(dl.Path + ": Download complete")
 
 	return nil
 }

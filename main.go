@@ -1,8 +1,10 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"fmt"
 	"megazen/routes"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -27,4 +29,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("MegaZen can now be accessed at http://localhost:3000")
 }

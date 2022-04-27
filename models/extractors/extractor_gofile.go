@@ -8,6 +8,7 @@ import (
 	"io"
 	"megazen/models"
 	"megazen/models/gofile"
+	"megazen/models/utils"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -19,13 +20,18 @@ type gofileEntry struct {
 	password string
 }
 
+var gofileHost = models.Host{Name: "Gofile"}
+
 func NewGofile(url string, token string, password string) *gofileEntry {
-	downloader := gofileEntry{Extractor{originUrl: url, host: models.Host{Name: "Gofile"}}, token, password}
+	downloader := gofileEntry{Extractor{originUrl: url, host: &gofileHost}, token, password}
+	downloader.host.Cookies = make([]*http.Cookie, 1)
+	downloader.host.Cookies[0] = &http.Cookie{Name: "accountToken", Value: token, MaxAge: 0}
+
 	return &downloader
 }
 
 func (dl *gofileEntry) Host() *models.Host {
-	return &dl.host
+	return dl.host
 }
 
 func (dl *gofileEntry) OriginUrl() string {
@@ -44,13 +50,13 @@ func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
 
 	contentId := filepath.Base(dl.originUrl)
 
-	requestUrl := "https://apiv2.gofile.io/getContent?contentId=" + contentId + "&token=" + dl.token + "&websiteToken=websiteToken&cache=true"
+	requestUrl := "https://apiv2.gofile.io/getContent?contentId=" + contentId + "&token=" + dl.token + "&websiteToken=12345&cache=true"
 	if dl.password != "" {
 		sha256Password := sha256.Sum256([]byte(dl.password))
 		requestUrl += "&password=" + hex.EncodeToString(sha256Password[:])
 	}
 
-	res, err := models.WaitForSuccessfulRequest(requestUrl, &dl.host.Timeouts)
+	res, err := utils.WaitForSuccessfulRequest(requestUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err
@@ -63,7 +69,7 @@ func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-
+			panic(err)
 		}
 	}(res.Body)
 
@@ -90,15 +96,10 @@ func (dl *gofileEntry) ParseDownloads(c chan *[]models.Download) error {
 			panic(err)
 		}
 
-		headers := make(map[string]string)
-		headers["Cookie"] = "accountToken=" + dl.token
-
-		dl.host.Headers = &headers
-
 		downloads = append(downloads, models.Download{
 			Url:  file.Link,
 			Path: savePath,
-			Host: &dl.host,
+			Host: dl.host,
 		})
 	}
 

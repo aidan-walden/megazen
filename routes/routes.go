@@ -94,6 +94,7 @@ func SubmitDownload(c *gin.Context) {
 }
 
 func DownloadsWebsocket(c *gin.Context) {
+
 	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
@@ -105,6 +106,13 @@ func DownloadsWebsocket(c *gin.Context) {
 			panic(err)
 		}
 	}
+
+	defer func(conn *websocket.Conn) {
+		err := conn.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(conn)
 
 	for {
 

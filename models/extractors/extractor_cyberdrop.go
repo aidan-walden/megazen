@@ -6,6 +6,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
+	"megazen/models/utils"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -16,15 +17,17 @@ type cyberdropEntry struct {
 	Extractor
 }
 
+var cyberHost = models.Host{
+	Name: "Cyberdrop",
+}
+
 func NewCyberdrop(url string) *cyberdropEntry {
-	downloader := cyberdropEntry{Extractor{originUrl: url, host: models.Host{
-		Name: "Cyberdrop",
-	}}}
+	downloader := cyberdropEntry{Extractor{originUrl: url, host: &cyberHost}}
 	return &downloader
 }
 
 func (dl *cyberdropEntry) Host() *models.Host {
-	return &dl.host
+	return dl.host
 }
 
 func (dl *cyberdropEntry) OriginUrl() string {
@@ -41,7 +44,7 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
+	res, err := utils.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err
@@ -65,6 +68,7 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 	}
 
 	dl.title = strings.TrimSpace(doc.Find("#title").Text())
+	dl.title = utils.ValidPathString(dl.title)
 	fmt.Println("Title: ", dl.title)
 
 	doc.Find("a.image").Each(func(i int, s *goquery.Selection) {
@@ -89,7 +93,7 @@ func (dl *cyberdropEntry) ParseDownloads(c chan *[]models.Download) error {
 		download := models.Download{
 			Url:  link,
 			Path: savePath,
-			Host: &dl.host,
+			Host: dl.host,
 		}
 
 		downloads = append(downloads, download)

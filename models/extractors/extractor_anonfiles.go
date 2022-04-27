@@ -5,6 +5,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
+	"megazen/models/utils"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -14,15 +15,17 @@ type anonfilesEntry struct {
 	Extractor
 }
 
+var anonHost = models.Host{
+	Name: "AnonFiles",
+}
+
 func NewAnonfiles(url string) *anonfilesEntry {
-	downloader := anonfilesEntry{Extractor{originUrl: url, host: models.Host{
-		Name: "AnonFiles",
-	}}}
+	downloader := anonfilesEntry{Extractor{originUrl: url, host: &anonHost}}
 	return &downloader
 }
 
 func (dl *anonfilesEntry) Host() *models.Host {
-	return &dl.host
+	return dl.host
 }
 
 func (dl *anonfilesEntry) OriginUrl() string {
@@ -39,7 +42,7 @@ func (dl *anonfilesEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
+	res, err := utils.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
 
 	if err != nil {
 
@@ -87,7 +90,7 @@ func (dl *anonfilesEntry) ParseDownloads(c chan *[]models.Download) error {
 	downloads = append(downloads, models.Download{
 		Url:  link,
 		Path: savePath,
-		Host: &dl.host,
+		Host: dl.host,
 	})
 
 	return nil

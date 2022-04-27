@@ -8,11 +8,11 @@
 <h1>Welcome to MegaZen</h1>
 <h2 id="downloads-header">Current Downloads</h2>
 <div id="downloads"></div>
-<h2 id="completed-header">Completed Downloads</h2>
+<button type="button" class="collapsible">Show/Hide Completed Downloads</button>
 <div id="completed"></div>
-<h2 id="waiting-header">Waiting Downloads</h2>
+<button type="button" class="collapsible">Show/Hide Waiting Downloads</button>
 <div id="waiting"></div>
-<h2 id="errors-header">Errors</h2>
+<button type="button" class="collapsible">Show/Hide Errors</button>
 <div id="errors"></div>
 </body>
 <script>
@@ -21,16 +21,10 @@
     const waiting = document.getElementById("waiting");
     const errors = document.getElementById("errors");
 
-    const dlsHeader = document.getElementById("downloads-header");
-    const completedHeader = document.getElementById("completed-header");
-    const waitingHeader = document.getElementById("waiting-header");
-    const errorsHeader = document.getElementById("errors-header");
 
-    dlsHeader.style.visibility = "hidden";
-    completedHeader.style.visibility = "hidden";
-    waitingHeader.style.visibility = "hidden";
-    errorsHeader.style.visibility = "hidden";
-
+    completed.style.display = "none";
+    waiting.style.display = "none";
+    errors.style.display = "none";
 
     const socket = new WebSocket("ws://" + window.location.host + "/ws/downloads");
 
@@ -38,18 +32,34 @@
         console.log("Connected to websocket");
     };
 
+    let coll = document.getElementsByClassName("collapsible");
+    let i;
+
+    for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            let content = this.nextElementSibling;
+            if (content.style.display === "block") {
+                content.style.display = "none";
+            } else {
+                content.style.display = "block";
+            }
+        });
+    }
+
     socket.onmessage = function(event) {
         let data = JSON.parse(event.data);
         console.log(data);
 
+        let completedNum = 0;
+
         if (data['downloads'].length > 0) {
-            dlsHeader.style.visibility = "visible";
-            completedHeader.style.visibility = "visible";
 
             let completedStr = '';
             let downloadsStr = '';
             data['downloads'].forEach(function(dl) {
                 if(dl['complete']) {
+                    completedNum++;
                     completedStr += `<p>${dl['path']}</p><hr />`;
                 }
                 else {
@@ -58,22 +68,20 @@
             });
 
             downloads.innerHTML = downloadsStr;
-            completed.innerHTML = completedStr;
+            completed.innerHTML = `<p>${completedNum}</p><hr />` + completedStr;
         }
 
         if (data['waiting'].length > 0) {
-            waitingHeader.style.visibility = "visible";
 
             let waitingStr = '';
             data['waiting'].forEach(function(dl) {
                waitingStr += `<p>${dl['path']}</p><hr />`
             });
 
-            waiting.innerHTML = waitingStr;
+            waiting.innerHTML = `<p>${data['waiting'].length}</p><hr />` + waitingStr;
         }
 
         if (data['errors'].length > 0) {
-            errorsHeader.style.visibility = "visible";
 
             let errorsStr = '';
             data['errors'].forEach(function(error) {
@@ -90,6 +98,10 @@
 
     socket.onerror = function(error) {
         console.log("Error: " + error);
+    };
+
+    window.onbeforeunload = function() {
+        socket.close();
     };
 
     setInterval(function() {

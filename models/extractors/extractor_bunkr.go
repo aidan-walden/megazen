@@ -1,31 +1,45 @@
 package extractors
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
-	"mime"
+	"megazen/models/bunkr"
+	"megazen/models/utils"
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
+
+	"github.com/panjf2000/ants"
 )
 
 type bunkrEntry struct {
 	Extractor
 }
 
+var streamBunkr = regexp.MustCompile(`((stream|cdn)\.bunkr\.[a-z]+)((/[a-z]/)*)`)
+var albumBunkr = regexp.MustCompile(`/a/[a-zA-Z0-9]+`)
+
+var bunkrPool, _ = ants.NewPool(2)
+
+var bunkrHost = models.Host{
+	Name: "Bunkr",
+	Pool: bunkrPool,
+	Wg:   &sync.WaitGroup{},
+}
+
 func NewBunkr(url string) *bunkrEntry {
-	downloader := bunkrEntry{Extractor{originUrl: url, host: models.Host{
-		Name: "Bunkr",
-	}}}
+	downloader := bunkrEntry{Extractor{originUrl: url, host: &bunkrHost}}
 	return &downloader
 }
 
 func (dl *bunkrEntry) Host() *models.Host {
-	return &dl.host
+	return dl.host
 }
 
 func (dl *bunkrEntry) OriginUrl() string {
@@ -42,7 +56,9 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 		c <- &downloads
 	}()
 
-	if strings.Contains(dl.originUrl, "stream.bunkr.is") {
+	dl.originUrl = strings.Replace(dl.originUrl, "bunkr.to", "bunkr.is", 1)
+
+	if strings.Contains(dl.originUrl, "stream.bunkr.is") || strings.Contains(dl.originUrl, "cdn.bunkr.is") {
 
 		path, err := filepath.Abs("./downloads/" + filepath.Base(dl.originUrl))
 
@@ -57,21 +73,25 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 		}
 
 		downloads = append(downloads, models.Download{
-			Url:  strings.Replace(dl.originUrl, "stream.bunkr.is/v/", "stream.bunkr.is/d/", 1),
+			Url:  streamBunkr.ReplaceAllString(dl.originUrl, "media-files.bunkr.is/"),
 			Path: savePath,
-			Host: &dl.host,
+			Host: dl.host,
 		})
 		return nil
 	}
 
-	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
+	albumPath := albumBunkr.FindString(dl.originUrl)
+
+	fmt.Println(albumPath)
+
+	res, err := utils.WaitForSuccessfulRequest("https://bunkr.is"+strings.Replace(albumPath, "/a/", "/api/album/", 1), &dl.host.Timeouts)
 
 	if err != nil {
 		return err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return errors.New("Status code error: " + string(rune(res.StatusCode)) + " " + res.Status)
+		return errors.New("Status code error: " + string(rune(res.StatusCode)) + " " + res.Status + ". Caused by WaitForSuccessfulRequest")
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -81,46 +101,31 @@ func (dl *bunkrEntry) ParseDownloads(c chan *[]models.Download) error {
 		}
 	}(res.Body)
 
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	var album bunkr.AlbumResponse
+
+	err = json.NewDecoder(res.Body).Decode(&album)
 
 	if err != nil {
 		return err
 	}
 
-	dl.title = strings.TrimSpace(doc.Find("#title").Text())
-	fmt.Println("Title: ", dl.title)
+	dl.title = album.Name
 
-	doc.Find(".image-container.column").Each(func(i int, s *goquery.Selection) {
-		link, found := s.Find("a").First().Attr("href")
+	fmt.Println("Got album: " + album.Name)
 
-		if !found {
-			return
-		}
-
-		extension := filepath.Ext(link)
-
-		mediaType := mime.TypeByExtension(extension)
-
-		if strings.HasPrefix(mediaType, "image") {
-			link = strings.Replace(link, "cdn.bunkr.is", "i.bunkr.is", 1)
-		} else if strings.HasPrefix(mediaType, "video") {
-			link = strings.Replace(link, "cdn.bunkr.is", "stream.bunkr.is/d", 1)
-		}
-
-		fileTitle := filepath.Base(link)
-
-		savePath, err := filepath.Abs("./downloads/" + dl.title + "/" + fileTitle)
+	for _, file := range album.Files {
+		savePath, err := filepath.Abs("./downloads/" + dl.title + "/" + file.Name)
 
 		if err != nil {
 			panic(err)
 		}
 
 		downloads = append(downloads, models.Download{
-			Url:  link,
+			Url:  streamBunkr.ReplaceAllString(file.Url, "media-files.bunkr.is"),
 			Path: savePath,
-			Host: &dl.host,
+			Host: dl.host,
 		})
-	})
+	}
 
 	return nil
 }

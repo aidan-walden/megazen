@@ -40,7 +40,7 @@ func parseUrl(url string) (string, error) {
 		url = strings.Replace(url, " ", "", -1)
 		reg, err := regexp.Compile("\\W\\w\\w\\w\\w\\w\\w\\w\\w\\W")
 		if err != nil {
-			return "",, err
+			return "", err
 		}
 		fileId := reg.FindString(url)
 		fileId = fileId[1 : len(fileId)-1]

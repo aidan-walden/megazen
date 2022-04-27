@@ -3,68 +3,52 @@ package extractors
 import (
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
+	"megazen/models/utils"
 	"mime"
 	"net/http"
-	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
-type kenmonoEntry struct {
+var kemonoReg = regexp.MustCompile(`^(http)s?://(?:www\.)?(kemono|coomer)\.party/`)
+
+type kemonoEntry struct {
 	Extractor
 }
 
-func NewKenmono(url string) *kenmonoEntry {
-	downloader := kenmonoEntry{Extractor{originUrl: url, host: models.Host{
-		Name: "Kenmono",
-	}}}
+var kemonoHost = models.Host{
+	Name: "Kemono",
+}
+
+func NewKemono(url string) *kemonoEntry {
+	downloader := kemonoEntry{Extractor{originUrl: url, host: &kemonoHost}}
 	return &downloader
 }
 
-func (dl *kenmonoEntry) Host() *models.Host {
-	return &dl.host
+func (dl *kemonoEntry) Host() *models.Host {
+	return dl.host
 }
 
-func (dl *kenmonoEntry) OriginUrl() string {
+func (dl *kemonoEntry) OriginUrl() string {
 	return dl.originUrl
 }
 
-func (dl *kenmonoEntry) Title() string {
+func (dl *kemonoEntry) Title() string {
 	return dl.title
 }
 
-func (dl *kenmonoEntry) ParseDownloads(c chan *[]models.Download) error {
+func (dl *kemonoEntry) ParseDownloads(c chan *[]models.Download) error {
 	downloads := make([]models.Download, 0)
 	defer func() {
 		c <- &downloads
 	}()
 
-	if strings.Contains(dl.originUrl, "stream.bunkr.is") {
-
-		path, err := filepath.Abs("./downloads/" + filepath.Base(dl.originUrl))
-
-		if err != nil {
-			return err
-		}
-
-		savePath, err := url.QueryUnescape(path)
-
-		if err != nil {
-			return err
-		}
-
-		downloads = append(downloads, models.Download{
-			Url:  strings.Replace(dl.originUrl, "stream.bunkr.is/v/", "stream.bunkr.is/d/", 1),
-			Path: savePath,
-			Host: &dl.host,
-		})
-		return nil
-	}
-
-	res, err := models.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
+	res, err := utils.WaitForSuccessfulRequest(dl.originUrl, &dl.host.Timeouts)
 
 	if err != nil {
 		return err
@@ -118,7 +102,7 @@ func (dl *kenmonoEntry) ParseDownloads(c chan *[]models.Download) error {
 		downloads = append(downloads, models.Download{
 			Url:  link,
 			Path: savePath,
-			Host: &dl.host,
+			Host: dl.host,
 		})
 	})
 

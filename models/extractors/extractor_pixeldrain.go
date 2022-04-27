@@ -5,6 +5,7 @@ import (
 	"errors"
 	"megazen/models"
 	"megazen/models/pixeldrain"
+	"megazen/models/utils"
 	"net/http"
 	"path/filepath"
 )
@@ -14,15 +15,17 @@ type pixeldrainEntry struct {
 	isFolder bool
 }
 
+var pixelHost = models.Host{
+	Name: "Pixeldrain",
+}
+
 func NewPixeldrain(url string, isFolder bool) *pixeldrainEntry {
-	downloader := pixeldrainEntry{Extractor{originUrl: url, host: models.Host{
-		Name: "Pixeldrain",
-	}}, isFolder}
+	downloader := pixeldrainEntry{Extractor{originUrl: url, host: &pixelHost}, isFolder}
 	return &downloader
 }
 
 func (dl *pixeldrainEntry) Host() *models.Host {
-	return &dl.host
+	return dl.host
 }
 
 func (dl *pixeldrainEntry) OriginUrl() string {
@@ -42,7 +45,7 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 	fileId := filepath.Base(dl.originUrl)
 
 	if dl.isFolder {
-		res, err := models.WaitForSuccessfulRequest("https://pixeldrain.com/api/list/"+fileId, &dl.host.Timeouts)
+		res, err := utils.WaitForSuccessfulRequest("https://pixeldrain.com/api/list/"+fileId, &dl.host.Timeouts)
 
 		if err != nil {
 			return err
@@ -70,12 +73,12 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 			downloads = append(downloads, models.Download{
 				Url:  "https://pixeldrain.com/api/file/" + info.Id,
 				Path: savePath,
-				Host: &dl.host,
+				Host: dl.host,
 			})
 		}
 
 	} else {
-		res, err := models.WaitForSuccessfulRequest("https://pixeldrain.com/api/file/"+fileId+"/info", &dl.host.Timeouts)
+		res, err := utils.WaitForSuccessfulRequest("https://pixeldrain.com/api/file/"+fileId+"/info", &dl.host.Timeouts)
 
 		if err != nil {
 			return err
@@ -102,7 +105,7 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 		downloads = append(downloads, models.Download{
 			Url:  "https://pixeldrain.com/api/file/" + info.Id,
 			Path: savePath,
-			Host: &dl.host,
+			Host: dl.host,
 		})
 	}
 
