@@ -38,11 +38,7 @@ func (dl *directEntry) SetTitle(title string) {
 func (dl *directEntry) ParseDownloads(c chan *[]models.Download) error {
 	downloads := make([]models.Download, 1)
 
-	path, err := filepath.Abs("./downloads/" + dl.title + "/" + filepath.Base(dl.originUrl))
-
-	if err != nil {
-		return err
-	}
+	path := filepath.Join(dl.title+"/", filepath.Base(dl.originUrl))
 
 	savePath, err := url.QueryUnescape(path)
 

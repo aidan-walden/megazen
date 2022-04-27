@@ -96,15 +96,9 @@ func (dl *pixeldrainEntry) ParseDownloads(c chan *[]models.Download) error {
 			return err
 		}
 
-		savePath, err := filepath.Abs("./downloads/" + info.Name)
-
-		if err != nil {
-			panic(err)
-		}
-
 		downloads = append(downloads, models.Download{
 			Url:  "https://pixeldrain.com/api/file/" + info.Id,
-			Path: savePath,
+			Path: info.Name,
 			Host: dl.host,
 		})
 	}

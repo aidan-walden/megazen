@@ -3,7 +3,6 @@ package extractors
 import (
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"megazen/models"
 	"megazen/models/utils"
@@ -11,6 +10,8 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type putmegaEntry struct {
@@ -104,7 +105,7 @@ func (dl *putmegaEntry) parseFile(doc *goquery.Document, downloads *[]models.Dow
 		return errors.New("no link found")
 	}
 
-	path, err := filepath.Abs("./downloads/" + title + "/" + filepath.Base(link))
+	path, err := filepath.Abs(title + "/" + filepath.Base(link))
 
 	if err != nil {
 		return err

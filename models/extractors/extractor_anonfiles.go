@@ -81,8 +81,6 @@ func (dl *anonfilesEntry) ParseDownloads(c chan *[]models.Download) error {
 
 	dl.title = title
 
-	savePath, err := filepath.Abs("./downloads/" + dl.title)
-
 	headers := make(map[string]string)
 	headers["Referer"] = "https://anonfiles.com/"
 
@@ -90,7 +88,7 @@ func (dl *anonfilesEntry) ParseDownloads(c chan *[]models.Download) error {
 
 	downloads = append(downloads, models.Download{
 		Url:  link,
-		Path: savePath,
+		Path: dl.title,
 		Host: dl.host,
 	})
 

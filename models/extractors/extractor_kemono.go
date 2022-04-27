@@ -93,11 +93,7 @@ func (dl *kemonoEntry) ParseDownloads(c chan *[]models.Download) error {
 
 		fileTitle := filepath.Base(link)
 
-		savePath, err := filepath.Abs("./downloads/" + dl.title + "/" + fileTitle)
-
-		if err != nil {
-			panic(err)
-		}
+		savePath := filepath.Join(dl.title+"/", fileTitle)
 
 		downloads = append(downloads, models.Download{
 			Url:  link,
